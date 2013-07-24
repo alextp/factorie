@@ -91,7 +91,7 @@ object BinarySerializer extends GlobalLogging {
         println("Before deserializing cubbie " + c.getClass.getName)
         System.gc()
         val runtime = Runtime.getRuntime
-        println("Used memory: " + ((runtime.totalMemory() - runtime.freeMemory())/(1024*1024.0*1025)) + " GB")
+        println("Used memory: " + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024.0 * 1025) + " GB")
       }
       deserialize(c, stream)
     }
@@ -100,7 +100,7 @@ object BinarySerializer extends GlobalLogging {
       println("After deserialization.")
       System.gc()
       val runtime = Runtime.getRuntime
-      println("Used memory: " + ((runtime.totalMemory() - runtime.freeMemory())/(1024*1024.0*1025)) + " GB")
+      println("Used memory: " + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024.0 * 1025) + " GB")
     }
   }
 
@@ -115,13 +115,14 @@ object BinarySerializer extends GlobalLogging {
   }
 
   def serialize(c: Cubbie, s: DataOutputStream): Unit = {
+    s.writeInt(c._map.size)
     for ((k, v) <- c._map.toSeq) serialize(Some(k), v, s)
   }
   def deserialize(c: Cubbie, s: DataInputStream): Unit = {
-    for ((k, v) <- c._map.toSeq) {
+    val toRead = s.readInt()
+    for (i <- 0 until toRead) {
       val key = readString(s)
-      assert(k == key, "Cubbie keys don't match with serialized data! (got \"%s\", expected \"%s\")" format (key, k))
-      c._map(key) = deserializeInner(v, s.readByte(), s)
+      c._map(key) = deserializeInner(c._map.getOrElse(key, null), s.readByte(), s)
     }
   }
 
