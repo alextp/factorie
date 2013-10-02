@@ -36,6 +36,7 @@ class POS1 extends DocumentAnnotator {
       The key into the ambiguityClasses is app.strings.replaceDigits().toLowerCase */
   object WordData {
     val ambiguityClasses = collection.mutable.HashMap[String,String]()
+    val sureTokens = collection.mutable.HashMap[String,Int]()
     val ambiguityClassThreshold = 0.7
     val wordInclusionThreshold = 1
 
@@ -66,6 +67,12 @@ class POS1 extends DocumentAnnotator {
           val bestPos = (0 until 45).maxBy(i => pos(i))
           if (pos(bestPos) > ambiguityClassThreshold*counts)
             ambiguityClasses(w) = PennPosDomain.category(bestPos)
+        }
+        if (wordCounts(w) > 1000) {
+          val pos = posCounts(w)
+          if (pos.max == wordCounts(w)) {
+            sureTokens(w) = pos.zipWithIndex.maxBy(_._1)._2
+          }
         }
       })
     }
@@ -207,9 +214,13 @@ class POS1 extends DocumentAnnotator {
     for (index <- 0 until tokens.length) {
       val token = tokens(index)
       val posLabel = token.attr[PennPosLabel]
-      val featureVector = features(token, index, lemmaStrings)
       if (token.attr[PennPosLabel] eq null) token.attr += new PennPosLabel(token, "NNP")
-      token.attr[PennPosLabel].set(model.classification(featureVector).bestLabelIndex)(null)
+      if (WordData.sureTokens.contains(token.string)) {
+        token.attr[PennPosLabel].set(WordData.sureTokens(token.string))(null)
+      } else {
+        val featureVector = features(token, index, lemmaStrings)
+        token.attr[PennPosLabel].set(model.classification(featureVector).bestLabelIndex)(null)
+      }
     }
   }
   def predict(span: TokenSpan): Unit = predict(span.tokens)
@@ -237,6 +248,7 @@ class POS1 extends DocumentAnnotator {
     BinarySerializer.serialize(FeatureDomain.dimensionDomain, dstream)
     BinarySerializer.serialize(model, dstream)
     BinarySerializer.serialize(WordData.ambiguityClasses, dstream)
+    BinarySerializer.serialize(WordData.sureTokens, dstream)
     dstream.close()  // TODO Are we really supposed to close here, or is that the responsibility of the caller
   }
   def deserialize(stream: java.io.InputStream): Unit = {
@@ -246,6 +258,7 @@ class POS1 extends DocumentAnnotator {
     model.weights.set(new la.DenseLayeredTensor2(PennPosDomain.size, FeatureDomain.dimensionDomain.size, new la.SparseIndexedTensor1(_)))
     BinarySerializer.deserialize(model, dstream)
     BinarySerializer.deserialize(WordData.ambiguityClasses, dstream)
+    BinarySerializer.deserialize(WordData.sureTokens, dstream)
     dstream.close()  // TODO Are we really supposed to close here, or is that the responsibility of the caller
   }
   
@@ -262,6 +275,7 @@ class POS1 extends DocumentAnnotator {
         if (token.attr[PennPosLabel].valueIsTarget) correct += 1.0
       }
     })
+    println(s"${1000.0*total/totalTime} tokens/sec")
     correct/total
   }
   
@@ -287,6 +301,9 @@ class POS1 extends DocumentAnnotator {
     //val optimizer = new cc.factorie.optimize.AdaGrad(rate=lrate)
     val optimizer = new cc.factorie.optimize.AdaGradRDA(rate=lrate, l1=l1Factor/examples.length, l2=l2Factor/examples.length)
     Trainer.onlineTrain(model.parameters, examples, maxIterations=numIterations, optimizer=optimizer, evaluate=evaluate, useParallelTrainer = true)
+    println("pre finalize accuracy: " + accuracy(testSentences))
+    optimizer.finalizeWeights(model.parameters)
+    println("post finalize accuracy: " + accuracy(testSentences))
     if (false) {
       // Print test results to file
       val source = new java.io.PrintStream(new File("pos1-test-output.txt"))
