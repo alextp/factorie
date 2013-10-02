@@ -200,7 +200,7 @@ class POS1 extends DocumentAnnotator {
         val token = tokens(index)
         val posLabel = token.attr[PennPosLabel]
         val featureVector = features(token, index, lemmaStrings)
-        new optimize.LinearMultiClassExample(model.weights, featureVector, posLabel.targetIntValue, lossAndGradient, 1.0).accumulateValueAndGradient(value, gradient)
+        new optimize.LinearMultiClassExampleLeft(model.weights, featureVector, posLabel.targetIntValue, lossAndGradient, 1.0).accumulateValueAndGradient(value, gradient)
   //      new optimize.LinearMultiClassExample(featureVector, posLabel.targetIntValue, lossAndGradient).accumulateValueAndGradient(model, gradient, value)
         if (exampleSetsToPrediction) {
           posLabel.set(model.classification(featureVector).bestLabelIndex)(null)
@@ -255,7 +255,7 @@ class POS1 extends DocumentAnnotator {
     import CubbieConversions._
     val dstream = new java.io.DataInputStream(stream)
     BinarySerializer.deserialize(FeatureDomain.dimensionDomain, dstream)
-    model.weights.set(new la.DenseLayeredTensor2(PennPosDomain.size, FeatureDomain.dimensionDomain.size, new la.SparseIndexedTensor1(_)))
+    model.weights.set(new la.DenseLayeredTensor2(FeatureDomain.dimensionDomain.size, PennPosDomain.size, new la.SparseIndexedTensor1(_)))
     BinarySerializer.deserialize(model, dstream)
     BinarySerializer.deserialize(WordData.ambiguityClasses, dstream)
     BinarySerializer.deserialize(WordData.sureTokens, dstream)
@@ -300,9 +300,14 @@ class POS1 extends DocumentAnnotator {
       new SentenceClassifierExample(sentence.tokens, model, if (useHingeLoss) cc.factorie.optimize.LinearObjectives.hingeMultiClass else cc.factorie.optimize.LinearObjectives.sparseLogMultiClass)).seq
     //val optimizer = new cc.factorie.optimize.AdaGrad(rate=lrate)
     val optimizer = new cc.factorie.optimize.AdaGradRDA(rate=lrate, l1=l1Factor/examples.length, l2=l2Factor/examples.length)
-    Trainer.onlineTrain(model.parameters, examples, maxIterations=numIterations, optimizer=optimizer, evaluate=evaluate, useParallelTrainer = true)
+    Trainer.onlineTrain(model.parameters, examples, maxIterations=numIterations, optimizer=optimizer, evaluate=evaluate, useParallelTrainer = false)
     println("pre finalize accuracy: " + accuracy(testSentences))
     optimizer.finalizeWeights(model.parameters)
+    println("post finalize accuracy: " + accuracy(testSentences))
+    println("post finalize accuracy: " + accuracy(testSentences))
+    println("post finalize accuracy: " + accuracy(testSentences))
+    println("post finalize accuracy: " + accuracy(testSentences))
+    println("post finalize accuracy: " + accuracy(testSentences))
     println("post finalize accuracy: " + accuracy(testSentences))
     if (false) {
       // Print test results to file

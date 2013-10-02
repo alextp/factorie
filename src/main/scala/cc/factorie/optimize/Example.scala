@@ -409,6 +409,16 @@ class LinearMultivariateExample[Label](weights: Weights2, featureVector: Tensor1
   }
 }
 
+class LinearMultivariateExampleLeft[Label](weights: Weights2, featureVector: Tensor1, label: Label, objective: MultivariateLinearObjective[Label], weight: Double = 1.0)
+  extends Example {
+  def accumulateValueAndGradient(value: DoubleAccumulator, gradient: WeightsMapAccumulator) {
+    val prediction = weights.value.leftMultiply(featureVector)
+    val (obj, sgrad) = objective.valueAndGradient(prediction, label)
+    if (value != null) value.accumulate(obj)
+    if (gradient != null && !sgrad.isInstanceOf[UniformTensor]) gradient.accumulate(weights, featureVector outer sgrad, weight)
+  }
+}
+
 /**
  * Example for all linear multiclass classifiers
  * @param weights The weights of the classifier
@@ -419,6 +429,9 @@ class LinearMultivariateExample[Label](weights: Weights2, featureVector: Tensor1
  */
 class LinearMultiClassExample(weights: Weights2, featureVector: Tensor1, label: Int, objective: LinearObjectives.MultiClass, weight: Double = 1.0)
   extends LinearMultivariateExample(weights, featureVector, label, objective, weight)
+
+class LinearMultiClassExampleLeft(weights: Weights2, featureVector: Tensor1, label: Int, objective: LinearObjectives.MultiClass, weight: Double = 1.0)
+  extends LinearMultivariateExampleLeft(weights, featureVector, label, objective, weight)
 
 /**
  * Base example for linear univariate models
