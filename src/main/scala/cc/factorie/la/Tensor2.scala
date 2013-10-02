@@ -56,7 +56,7 @@ trait Tensor2 extends Tensor {
   def leftMultiply(t: Tensor1): Tensor1 = {
     assert(dim1 == t.dim1, "Dimensions don't match: " + dim1 + " " + t.dim1)
     val newT = new DenseTensor1(dim2)
-    t.activeDomain1.foreach(i => (0 until dim2).foreach(j => newT(j) += this(i,j)*t(i)))
+    t.foreachActiveElement((i,v) => (0 until dim2).foreach(j => newT(j) += this(i,j)*v))
     newT
   }
   def trace: Double = {
@@ -687,6 +687,11 @@ trait DenseLayeredTensorLike2 extends Tensor2 with SparseDoubleSeq {
     for (i <- 0 until dim1) {
       out(i) = inner(i) dot other
     }
+    out
+  }
+  override def leftMultiply(other: Tensor1): Tensor1  = {
+    val out = new DenseTensor1(dim2)
+    other.foreachActiveElement((i, v) => if (_inners(i) ne null) out += (inner(i),v))
     out
   }
   override def +=(i:Int, incr:Double): Unit = getInner(index1(i)).+=(index2(i), incr)
