@@ -6,7 +6,7 @@ import cc.factorie.util.{BinarySerializer, CubbieConversions, DoubleAccumulator}
 import java.io.{File,InputStream,FileInputStream}
 import cc.factorie.util.HyperparameterMain
 import cc.factorie.variable.{BinaryFeatureVectorVariable, CategoricalVectorDomain}
-import cc.factorie.app.classify.LinearMultiClassClassifier
+import cc.factorie.app.classify.{LinearMultiClassClassifierLeft, LinearMultiClassClassifier}
 import cc.factorie.optimize.Trainer
 
 class POS1 extends DocumentAnnotator {
@@ -17,7 +17,7 @@ class POS1 extends DocumentAnnotator {
   
   object FeatureDomain extends CategoricalVectorDomain[String]
   class FeatureVariable(t:Tensor1) extends BinaryFeatureVectorVariable[String] { def domain = FeatureDomain; set(t)(null) } // Only used for printing diagnostics
-  lazy val model = new LinearMultiClassClassifier(PennPosDomain.size, FeatureDomain.dimensionSize)
+  lazy val model = new LinearMultiClassClassifierLeft(PennPosDomain.size, FeatureDomain.dimensionSize)
   
   /** Local lemmatizer used for POS features. */
   protected def lemmatize(string:String): String = cc.factorie.app.strings.replaceDigits(string)
