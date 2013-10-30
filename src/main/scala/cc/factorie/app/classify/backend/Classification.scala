@@ -149,8 +149,16 @@ class LinearBinaryClassifier(val featureSize: Int) extends BinaryClassifier[Tens
 
 class LinearMulticlassClassifier(val labelSize: Int, val featureSize: Int) extends MulticlassClassifier[Tensor1] with Parameters with LinearModel[Tensor1,Tensor1] {
   val weights = Weights(new DenseTensor2(featureSize, labelSize))
-  def score(features: Tensor1): Tensor1 = weights.value.leftMultiply(features)
-  def accumulateStats(accumulator: WeightsMapAccumulator, features: Tensor1, gradient: Tensor1) = accumulator.accumulate(weights, features outer gradient)
+  val bias = Weights(new DenseTensor1(labelSize))
+  def score(features: Tensor1): Tensor1 = {
+    val r = weights.value.leftMultiply(features)
+    r += bias.value
+    r
+  }
+  def accumulateStats(accumulator: WeightsMapAccumulator, features: Tensor1, gradient: Tensor1) = {
+    accumulator.accumulate(weights, features outer gradient)
+    accumulator.accumulate(bias, gradient)
+  }
   def asDotTemplate[T <: LabeledMutableDiscreteVar](l2f: T => TensorVar)(implicit ml: Manifest[T]) = new DotTemplateWithStatistics2[T,TensorVar] {
     def unroll1(v: T) = Factor(v, l2f(v))
     def unroll2(v: TensorVar) = Nil
